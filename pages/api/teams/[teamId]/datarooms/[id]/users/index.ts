@@ -30,10 +30,19 @@ export default async function handle(
       return res.status(400).json("Email is missing in request body");
     }
 
+    if (emails.length > 5) {
+      return res
+        .status(400)
+        .json("You can only send invitations to 5 emails at a time.");
+    }
+
     try {
       const team = await prisma.team.findUnique({
         where: {
           id: teamId,
+          plan: {
+            notIn: ["free", "free+drtrial"],
+          },
           users: {
             some: {
               userId: (session.user as CustomUser).id,
@@ -67,6 +76,7 @@ export default async function handle(
         data: emails.map((email) => ({
           email,
           dataroomId,
+          teamId,
           invitedAt: new Date(),
         })),
         skipDuplicates: true,

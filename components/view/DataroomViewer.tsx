@@ -90,36 +90,11 @@ export default function DataroomViewer({
   setDataroomVerified: React.Dispatch<React.SetStateAction<boolean>>;
   isPreview?: boolean;
 }) {
-  const router = useRouter();
   const [folderId, setFolderId] = useState<string | null>(null);
   const { documents, folders } = dataroom as {
     documents: DataroomDocument[];
     folders: DataroomFolder[];
   };
-
-  useEffect(() => {
-    // Remove token and email query parameters on component mount
-    const removeQueryParams = () => {
-      const currentQuery = { ...router.query };
-
-      if (!currentQuery.token && !currentQuery.email) return;
-
-      setDataroomVerified(true);
-      delete currentQuery.token;
-      delete currentQuery.email;
-
-      router.replace(
-        {
-          pathname: router.pathname,
-          query: currentQuery,
-        },
-        undefined,
-        { shallow: true },
-      );
-    };
-
-    removeQueryParams();
-  }, []); // Run once on mount
 
   const breadcrumbFolders = useMemo(
     () => getParentFolders(folderId, folders),

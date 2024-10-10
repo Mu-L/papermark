@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import React, { useEffect, useRef, useState } from "react";
 
 import { Brand } from "@prisma/client";
+import Cookies from "js-cookie";
 import { usePlausible } from "next-plausible";
 import { ExtendedRecordMap } from "notion-types";
 import { toast } from "sonner";
@@ -42,6 +43,7 @@ export type DEFAULT_DOCUMENT_VIEW_TYPE = {
   fileType?: string;
   isPreview?: boolean;
   ipAddress?: string;
+  verificationToken?: string;
 };
 
 export default function DocumentView({
@@ -100,6 +102,11 @@ export default function DocumentView({
   );
   const [verificationRequested, setVerificationRequested] =
     useState<boolean>(false);
+  const [verificationToken, setVerificationToken] = useState<string | null>(
+    token ?? null,
+  );
+  const [code, setCode] = useState<string | null>(null);
+  const [isInvalidCode, setIsInvalidCode] = useState<boolean>(false);
 
   const handleSubmission = async (): Promise<void> => {
     setIsLoading(true);
@@ -118,10 +125,11 @@ export default function DocumentView({
         userId: userId ?? null,
         documentVersionId: document.versions[0].id,
         hasPages: document.versions[0].hasPages,
-        token: token ?? null,
-        verifiedEmail: verifiedEmail ?? null,
         useAdvancedExcelViewer,
         previewToken,
+        code: code ?? undefined,
+        token: verificationToken ?? undefined,
+        verifiedEmail: verifiedEmail ?? undefined,
       }),
     });
 
@@ -140,6 +148,7 @@ export default function DocumentView({
           fileType,
           isPreview,
           ipAddress,
+          verificationToken,
         } = fetchData as DEFAULT_DOCUMENT_VIEW_TYPE;
         plausible("documentViewed"); // track the event
         analytics.identify(
@@ -152,6 +161,18 @@ export default function DocumentView({
           viewerId: viewId,
           viewerEmail: data.email ?? verifiedEmail ?? userEmail,
         });
+
+        // set the verification token to the cookie
+        if (verificationToken) {
+          Cookies.set("pm_vft", verificationToken, {
+            path: router.asPath.split("?")[0],
+            expires: 1,
+            sameSite: "strict",
+            secure: true,
+          });
+          setCode(null);
+        }
+
         setViewData({
           viewId,
           file,
@@ -170,18 +191,12 @@ export default function DocumentView({
       toast.error(data.message);
 
       if (data.resetVerification) {
-        const currentQuery = { ...router.query };
-        delete currentQuery.token;
-        delete currentQuery.email;
+        const currentPath = router.asPath.split("?")[0];
 
-        router.replace(
-          {
-            pathname: router.pathname,
-            query: currentQuery,
-          },
-          undefined,
-          { shallow: true },
-        );
+        Cookies.remove("pm_vft", { path: currentPath });
+        setVerificationToken(null);
+        setCode(null);
+        setIsInvalidCode(true);
       }
       setIsLoading(false);
     }
@@ -212,6 +227,10 @@ export default function DocumentView({
         onSubmitHandler={handleSubmit}
         data={data}
         isLoading={isLoading}
+        code={code}
+        setCode={setCode}
+        isInvalidCode={isInvalidCode}
+        setIsInvalidCode={setIsInvalidCode}
       />
     );
   }
