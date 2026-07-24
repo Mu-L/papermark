@@ -25,6 +25,7 @@ type LinkFetchStatus =
   | "not_found"
   | "archived"
   | "deleted"
+  | "expired"
   | "free"
   | "frozen";
 
@@ -975,6 +976,10 @@ export async function fetchLinkDataById({
     return { status: "archived" };
   }
 
+  if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
+    return { status: "expired" };
+  }
+
   return processLinkData(link, { dataroomDocumentId, isCustomDomain: false });
 }
 
@@ -1011,6 +1016,10 @@ export async function fetchLinkDataByDomainSlug({
 
   if (link.isArchived) {
     return { status: "archived" };
+  }
+
+  if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
+    return { status: "expired" };
   }
 
   return processLinkData(link, { dataroomDocumentId, isCustomDomain: true });
